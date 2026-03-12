@@ -1,5 +1,7 @@
 "# ML01"
 
+## 개발 환경 구성하기
+
 ### miniconda 다운로드
 ==> https://repo.anaconda.com/miniconda/
 
@@ -19,12 +21,11 @@ conda install -c conda-forge numpy pandas scipy matplotlib seaborn plotly jupyte
 
 
 
+### Visual Studio Code 다운로드 주소
+https://code.visualstudio.com/download
+
+
+
 ### 인공지능 제조 플랫폼 주소
 https://www.kamp-ai.kr/main
-
-
-
-### github 저장소
-https://github.com/sungback/ML01
-
 

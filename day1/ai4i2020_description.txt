@@ -7,7 +7,19 @@
 - DuckDB로 그룹 집계와 구간화(binning) 실습도 깔끔함.
 - 제조업 직장인에게는 “센서값과 고장 이벤트를 같이 보는 감각”을 익히기에 좋음.
 
+### 주요 컬럼
+- `Type` : 제품 타입
+- `Air temperature [K]` : 외기 온도
+- `Process temperature [K]` : 공정 온도
+- `Rotational speed [rpm]` : 회전 속도
+- `Torque [Nm]` : 토크
+- `Tool wear [min]` : 공구 마모 시간
+- `Machine failure` : 전체 고장 여부
+- `TWF`, `HDF`, `PWF`, `OSF`, `RNF` : 고장 유형 플래그
 
+### 핵심 포인트
+이 데이터는 단순한 숫자 표가 아니라,
+설비 상태값과 고장 결과를 함께 보는 제조 데이터라는 점이 중요하다.
 
 3. 컬럼을 하나씩 쉽게 이해하기
 

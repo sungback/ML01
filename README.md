@@ -24,6 +24,7 @@
 
 ### 인공지능 제조 플랫폼 주소
 - https://www.kamp-ai.kr/main
+- 실습은 "사출성형기 AI 데이터셋"으로 진행할 예정
 
 ### 캐글 주소
 - https://www.kaggle.com/
@@ -31,9 +32,14 @@
 ### streamlit 주소
 - https://streamlit.io/
 
-### streamlit 공부 : wikidocs, 데이터 과학자의 쉬운 웹 제작 도구
+### streamlit 공부1 : wikidocs, 데이터 과학자의 쉬운 웹 제작 도구
 - https://wikidocs.net/226653
 
-### streamlit 공부 : 설명이 잘된 블로그 주소
+### streamlit 공부2 : 설명이 잘된 블로그 주소
 - https://blog.zarathu.com/posts/2023-02-01-streamlit/
 
+### streamlit 공부3 : 설명이 잘된 github tutorial
+- https://github.com/teddylee777/streamlit-tutorial
+
+### streamlit 공부4 : 설명이 잘된 youtube 영상
+- https://www.youtube.com/watch?v=F8a-0JFHfOo

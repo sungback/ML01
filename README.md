@@ -19,16 +19,21 @@
 ### 라이브러리 설치
 - conda install -c conda-forge numpy pandas scipy matplotlib seaborn plotly jupyter scikit-learn statsmodels openpyxl xlrd beautifulsoup4 lxml requests tqdm xgboost lightgbm optuna catboost
 
-
-
 ### Visual Studio Code 다운로드 주소
 - https://code.visualstudio.com/download
-
-
 
 ### 인공지능 제조 플랫폼 주소
 - https://www.kamp-ai.kr/main
 
-
 ### 캐글 주소
 - https://www.kaggle.com/
+
+### streamlit 주소
+- https://streamlit.io/
+
+### streamlit 공부 : wikidocs, 데이터 과학자의 쉬운 웹 제작 도구
+- https://wikidocs.net/226653
+
+### streamlit 공부 : 설명이 잘된 블로그 주소
+- https://blog.zarathu.com/posts/2023-02-01-streamlit/
+

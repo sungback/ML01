@@ -2,8 +2,11 @@
 
 ## 개발 환경 구성하기
 
-### miniconda 다운로드
+### miniconda 다운로드, 운영체제별 설치 파일 다운로드 후 Next, yes 클릭하여 설치 진행
 ==> https://repo.anaconda.com/miniconda/
+
+### miniconda 프롬프트 띄우기
+- 시작 > 모두 > Anaconda (miniconda3) > Anaconda Prompt
 
 ### conda update
 - conda update -n base -c defaults conda
@@ -19,12 +22,11 @@
 ### 라이브러리 설치
 - conda install -c conda-forge numpy pandas scipy matplotlib seaborn plotly jupyter scikit-learn statsmodels openpyxl xlrd beautifulsoup4 lxml requests tqdm xgboost lightgbm optuna catboost
 
-### Visual Studio Code 다운로드 주소
+### Visual Studio Code 다운로드 주소, 운영체제별 설치 파일 다운로드 후 Next, yes 클릭하여 설치 진행
 - https://code.visualstudio.com/download
 
 ### 인공지능 제조 플랫폼 주소
 - https://www.kamp-ai.kr/main
-- 실습은 "사출성형기 AI 데이터셋"으로 진행할 예정
 
 ### 캐글 주소
 - https://www.kaggle.com/
@@ -43,3 +45,7 @@
 
 ### streamlit 공부4 : 설명이 잘된 youtube 영상
 - https://www.youtube.com/watch?v=F8a-0JFHfOo
+
+### 쉬운 통계 무료 유튜브 강의 : [ 딥하지 않은 확률통계 ]
+- https://www.youtube.com/watch?v=1rppbn9M35c&list=PL44zjiJMJWSohV9vl-YU35sDS7nNBLbJQ
+

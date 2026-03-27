@@ -104,7 +104,7 @@ Predicting Manufacturing Defects Dataset
 
 
 ### [ kaggle 번역 크롬 확장 프로그램 설치 및 사용법 ]
-- 1. 크롬 확장 프로그램 설치
+1. 크롬 확장 프로그램 설치
 - 1-1. https://github.com/sungback/DS01 에서
    kaggle-notebook-translation-helper-main.zip 를 다운로드
 - 1-2. 편한 위치에 압축 해제. 다운로드 폴더는 자주 삭제하니까 지워지지 않게 문서 폴더 선택하겠음.
@@ -114,7 +114,7 @@ Predicting Manufacturing Defects Dataset
    > 확장 프로그램 >  확장 프로그램 관리 > 개발자 모드 체크(on)
    > [압축 해제된 확장 프로그램 로드] 클릭 > 문서\kaggle-notebook-translation-helper-main 아래 src 선택
    > Kaggle Notebook Translation Helper 1.4.0 설치 완료.
-- 2. 사용 방법
+2. 사용 방법
 - 2-1. 캐글에서 사용하는 방법
    kaggle.com 접속 > 예 : competitions 클릭 > 스크롤 > Getting Started 의 Titanic 클릭
    > Code 클릭 > 예를 들어 두번째인 "Titanic competition w/ TensorFlow Decision Forests" 클릭

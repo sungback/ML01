@@ -119,3 +119,7 @@ Predicting Manufacturing Defects Dataset
    kaggle.com 접속 > 예 : competitions 클릭 > 스크롤 > Getting Started 의 Titanic 클릭
    > Code 클릭 > 예를 들어 두번째인 "Titanic competition w/ TensorFlow Decision Forests" 클릭
    > 좌측 상단에 [Display iframe] 클릭 > 우클릭 > 한국어로 번역
+
+### 유튜브 추천 : AI 마스터하기
+https://www.youtube.com/playlist?list=PLVE1cahS5WEShoNLpkRwwsmHcO9xaHorz
+

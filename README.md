@@ -111,7 +111,7 @@ conda activate pycaret_env
 **3. 필수 라이브러리 설치**
 > 설치 시 `matplotlib`, `seaborn`, `scikit-learn` 등 주요 데이터 분석 라이브러리가 함께 설치됩니다.
 ```bash
-pip install pycaret[full] jupyter ipykernel
+pip install "pycaret[full]" jupyter ipykernel
 ```
 
 **4. 참고 소스 (PyCaret 사용 예제)**

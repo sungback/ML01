@@ -140,3 +140,45 @@ Predicting Manufacturing Defects Dataset
 ### 유튜브 추천 : AI 마스터하기
 
 <https://www.youtube.com/playlist?list=PLVE1cahS5WEShoNLpkRwwsmHcO9xaHorz>
+
+
+### AutoML 라이브러리 PyCaret 가상환경 설정 및 사용법
+
+**1. Anaconda Prompt 실행**
+- `시작` > `모두` > `Anaconda (miniconda3)` > `Anaconda Prompt`
+
+**2. 가상환경 생성 및 활성화**
+Python 3.10 버전이 PyCaret과 가장 호환성이 좋습니다.
+```bash
+# 가상환경 생성
+conda create -n pycaret_env python=3.10 -y
+
+# 가상환경 활성화
+conda activate pycaret_env
+```
+
+**3. 필수 라이브러리 설치**
+`pycaret[full]` 설치 시 `matplotlib`, `seaborn`, `scikit-learn` 등 주요 데이터 분석 라이브러리가 함께 설치됩니다.
+```bash
+pip install pycaret[full] jupyter ipykernel
+```
+
+### 참고 소스
+
+```python
+from pycaret.datasets import get_data
+from pycaret.classification import *
+
+# 1. 데이터 불러오기 (붓꽃 데이터)
+data = get_data('iris')
+
+# 2. PyCaret 환경 초기화
+# html=False 옵션은 특정 환경에서 UI 충돌을 방지합니다. 기본은 True입니다.
+s = setup(data, target = 'species', session_id = 123)
+
+# 3. 모델 성능 비교 (자동 ML 시작)
+best_model = compare_models()
+
+# 4. 결과 출력 확인
+print(best_model)
+```

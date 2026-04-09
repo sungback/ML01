@@ -78,7 +78,7 @@
 
 ### Kaggle 노트북 번역 크롬 확장 프로그램 사용법
 **1. 설치 방법**
-- [Github 저장소](https://github.com/sungback/DS01)에서 `kaggle-notebook-translation-helper-main.zip` 다운로드
+- [Github 저장소](https://github.com/sungback/DS01)의 etc 폴더에서 `kaggle-notebook-translation-helper-main.zip` 다운로드
 - 다운로드 된 파일을 안전한 폴더(예: `문서\kaggle-notebook-translation-helper-main`)에 압축 해제
 - 크롬 브라우저 실행 > 우측 상단 `⋮` 클릭 > `확장 프로그램` > `확장 프로그램 관리`
 - 우측 상단 `개발자 모드` 활성화(On)

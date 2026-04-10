@@ -132,3 +132,6 @@ best_model = compare_models()
 # 4. 결과 출력 확인
 print(best_model)
 ```
+
+**5. pycaret 공부 사이트**
+* [1위 PyCaret 소개 Low-code 머신러닝의 시작](https://wikidocs.net/306399)

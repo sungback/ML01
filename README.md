@@ -135,3 +135,14 @@ print(best_model)
 
 **5. pycaret 공부 사이트**
 * [1위 PyCaret 소개 Low-code 머신러닝의 시작](https://wikidocs.net/306399)
+
+---
+
+## 📱 AI로 5분 만에 앱 개발 : onspace.ai
+
+코딩 없이도 AI를 활용해 앱을 직접 만들고, 수익화·배포까지 한 번에 할 수 있는 OnSpace AI 관련 영상 모음입니다.
+
+* [(코딩X) 앱 외주 맡기지 마세요. AI가 5분 만에 진짜 앱 만들어줍니다](https://www.youtube.com/watch?v=wKwvzXFP2Wg&t=24s)
+* [간단한 앱도 돈내고 쓰고 계셨나요? 이제는 직접 만드는 시대 — OnSpace로 앱 제작, 수익화, 배포까지 한번에!](https://www.youtube.com/watch?v=43heYabCgMI)
+* [요즘 잘나가는 유튜버들이 몰래 앱으로 갈아타고 있는 이유](https://www.youtube.com/watch?v=Uazp3vRusbQ)
+* [가장 빠르게 앱을 제작하고 배포하는 법 — OnSpaceAI](https://www.youtube.com/watch?v=N2Z0BsIpcIc)

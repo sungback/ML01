@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775995622454,
+  "projectRoot": "/Users/back/내 드라이브/_2026/02_2026_03/02_한화시스템_강의/_git_ml1",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "Util": {
+      "path": "Util",
+      "purpose": null,
+      "fileCount": 14,
+      "lastAccessed": 1775995622439,
+      "keyFiles": [
+        "BANDIZIP-SETUP-STD-X64.EXE",
+        "BandiNamer.exe",
+        "D2Coding-Ver1.3.2-20180524.zip",
+        "Epic Pen Setup.exe",
+        "Everything.exe"
+      ]
+    },
+    "etc": {
+      "path": "etc",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1775995622439,
+      "keyFiles": [
+        "ai_ml_dl.png",
+        "data.zip",
+        "kaggle-notebook-translation-helper-main.zip"
+      ]
+    },
+    "images": {
+      "path": "images",
+      "purpose": null,
+      "fileCount": 14,
+      "lastAccessed": 1775995622440,
+      "keyFiles": [
+        "K-means1.png",
+        "Kmeans_infograph.png",
+        "PCA_infograpg.png",
+        "RandomForest_infograph.png",
+        "anova_infograph.png"
+      ]
+    },
+    "work": {
+      "path": "work",
+      "purpose": null,
+      "fileCount": 53,
+      "lastAccessed": 1775995622440,
+      "keyFiles": [
+        "01_titanic.ipynb",
+        "02_ai4i.ipynb",
+        "03_streamlit_use.md",
+        "NASA_Turbofan_Jet_Engine0.ipynb",
+        "NASA_Turbofan_Jet_Engine1.ipynb"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "README.md",
+      "accessCount": 3,
+      "lastAccessed": 1775995673739,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

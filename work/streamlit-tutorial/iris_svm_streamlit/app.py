@@ -6,24 +6,24 @@ import joblib           # 저장된 AI 모델을 불러오기 위함
 import numpy as np      # 입력 데이터를 행렬로 변환하기 위함
 import pandas as pd     # 데이터를 표(Table)와 차트로 시각화하기 위함
 
+# --- 화면 UI 시작 ---
+st.title("🌸 붓꽃(Iris) 품종 예측 서비스")
+st.write("왼쪽 사이드바에서 꽃의 수치를 조절하고 예측 버튼을 눌러보세요.")
+
 # [함수] 모델 로딩 (캐싱 기능을 사용하여 웹사이트 속도 저하 방지)
 @st.cache_resource
 def load_trained_model():
     try:
         # 학습시킨 모델 파일을 불러옵니다.
-        return joblib.load('svm_model.pkl')
+        return joblib.load('iris_model.pkl')
     except FileNotFoundError:
         # 파일이 없을 경우 화면에 에러 메시지를 표시합니다.
-        st.error("⚠️ 'svm_model.pkl' 파일을 찾을 수 없습니다. 학습 코드를 먼저 실행하세요!")
+        st.error("⚠️ 'iris_model.pkl' 파일을 찾을 수 없습니다. 학습 코드를 먼저 실행하세요!")
         return None
 
 # 모델 로드 및 품종 이름 정의
 model = load_trained_model()
 target_names = ['Setosa', 'Versicolor', 'Virginica']
-
-# --- 화면 UI 시작 ---
-st.title("🌸 붓꽃(Iris) 품종 예측 서비스")
-st.write("왼쪽 사이드바에서 꽃의 수치를 조절하고 예측 버튼을 눌러보세요.")
 
 # [사이드바] 사용자가 수치를 입력할 수 있는 슬라이더 생성
 st.sidebar.header("📏 특징(Feature) 입력")

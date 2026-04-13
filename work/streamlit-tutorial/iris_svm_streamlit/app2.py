@@ -14,9 +14,9 @@ st.set_page_config(
 @st.cache_resource
 def load_trained_model():
     try:
-        return joblib.load('svm_model.pkl')
+        return joblib.load('iris_model.pkl')
     except FileNotFoundError:
-        st.error("⚠️ 'svm_model.pkl' 파일을 찾을 수 없습니다. 학습 코드를 먼저 실행하세요!")
+        st.error("⚠️ 'iris_model.pkl' 파일을 찾을 수 없습니다. 학습 코드를 먼저 실행하세요!")
         return None
 
 # 모델 로드 및 데이터 정의

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775995622454,
+  "lastScanned": 1776262631968,
   "projectRoot": "/Users/back/내 드라이브/_2026/02_2026_03/02_한화시스템_강의/_git_ml1",
   "techStack": {
     "languages": [],
@@ -36,7 +36,7 @@
       "path": "Util",
       "purpose": null,
       "fileCount": 14,
-      "lastAccessed": 1775995622439,
+      "lastAccessed": 1776262631900,
       "keyFiles": [
         "BANDIZIP-SETUP-STD-X64.EXE",
         "BandiNamer.exe",
@@ -49,7 +49,7 @@
       "path": "etc",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1775995622439,
+      "lastAccessed": 1776262631947,
       "keyFiles": [
         "ai_ml_dl.png",
         "data.zip",
@@ -60,7 +60,7 @@
       "path": "images",
       "purpose": null,
       "fileCount": 14,
-      "lastAccessed": 1775995622440,
+      "lastAccessed": 1776262631948,
       "keyFiles": [
         "K-means1.png",
         "Kmeans_infograph.png",
@@ -72,8 +72,8 @@
     "work": {
       "path": "work",
       "purpose": null,
-      "fileCount": 53,
-      "lastAccessed": 1775995622440,
+      "fileCount": 55,
+      "lastAccessed": 1776262631948,
       "keyFiles": [
         "01_titanic.ipynb",
         "02_ai4i.ipynb",
@@ -83,13 +83,6 @@
       ]
     }
   },
-  "hotPaths": [
-    {
-      "path": "README.md",
-      "accessCount": 3,
-      "lastAccessed": 1775995673739,
-      "type": "file"
-    }
-  ],
+  "hotPaths": [],
   "userDirectives": []
 }

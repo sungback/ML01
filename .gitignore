@@ -8,3 +8,4 @@
 Thumbs.db
 
 work/mold_data/unlabeled_data.csv
+work/models/*.pkl

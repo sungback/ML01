@@ -2,31 +2,63 @@
 
 ## 🛠️ 개발 환경 구성하기
 
-### 1. Miniconda 설치 및 설정
-1. **Miniconda 다운로드 및 설치**
-   - [Miniconda 다운로드 링크](https://repo.anaconda.com/miniconda/)
+### 1. Miniforge 설치 및 설정
+1. **Miniforge 다운로드 및 설치**
+   - [Miniforge 다운로드 링크](https://github.com/conda-forge/miniforge/releases/latest)
    - 운영체제별 설치 파일을 다운로드한 후, Next와 Yes를 클릭하여 설치를 진행합니다.
-2. **Miniconda 프롬프트 실행**
-   - `시작` > `모두` > `Anaconda (miniconda3)` > `Anaconda Prompt`
-3. **Conda 업데이트**
-   ```bash
-   conda update -n base -c defaults conda
-   ```
-4. **기본 레포지토리를 conda-forge로 변경**
-   ```bash
-   conda config --add channels conda-forge
-   conda config --set channel_priority strict
-   ```
+2. **Miniforge 프롬프트 실행**
+   - `시작` > `모두` > `Miniforge3` > `Miniforge Prompt`
 
 ### 2. 가상환경 생성 및 필요 라이브러리 설치
-1. **가상환경 생성 및 활성화 (Python 3.11)**
+
+> 💡 **초보자 추천**: 아래 **방법 1 (yml 파일 사용)** 로 한 번에 설치하세요!
+
+**방법 1. yml 파일로 한 번에 설치 (권장)**
+1. 이 저장소를 클론하거나 아래 내용을 `environment.yml` 파일로 저장합니다.
+   ```yaml
+   name: ds
+   channels:
+     - conda-forge
+   dependencies:
+     - python=3.12
+     - numpy
+     - pandas
+     - scipy
+     - matplotlib
+     - seaborn
+     - plotly
+     - jupyter
+     - scikit-learn
+     - statsmodels
+     - openpyxl
+     - beautifulsoup4
+     - lxml
+     - requests
+     - tqdm
+     - xgboost
+     - lightgbm
+     - optuna
+     - catboost
+   ```
+2. Miniforge Prompt를 열고 `environment.yml` 파일이 있는 폴더로 이동한 후, 아래 명령어 한 줄로 가상환경 생성 및 라이브러리 설치를 완료합니다.
    ```bash
-   conda create -n ds python=3.11 -y
+   mamba env create -f environment.yml
+   ```
+3. 가상환경을 활성화합니다.
+   ```bash
+   conda activate ds
+   ```
+
+
+**방법 2. 직접 설치**
+1. **가상환경 생성 및 활성화 (Python 3.12)**
+   ```bash
+   mamba create -n ds python=3.12 -y
    conda activate ds
    ```
 2. **필수 라이브러리 설치**
    ```bash
-   conda install -c conda-forge numpy pandas scipy matplotlib seaborn plotly jupyter scikit-learn statsmodels openpyxl beautifulsoup4 lxml requests tqdm xgboost lightgbm optuna catboost
+   mamba install numpy pandas scipy matplotlib seaborn plotly jupyter scikit-learn statsmodels openpyxl beautifulsoup4 lxml requests tqdm xgboost lightgbm optuna catboost
    ```
 
 ### 3. Visual Studio Code 설치
@@ -95,8 +127,8 @@
 
 ## 🤖 AutoML (PyCaret) 가상환경 설정 및 사용법
 
-**1. Anaconda Prompt 실행**
-- `시작` > `모두` > `Anaconda (miniconda3)` > `Anaconda Prompt`
+**1. Miniforge Prompt 실행**
+- `시작` > `모두` > `Miniforge3` > `Miniforge Prompt`
 
 **2. 가상환경 생성 및 활성화**
 > 💡 *참고: Python 3.10 버전이 PyCaret과 가장 호환성이 좋습니다.*

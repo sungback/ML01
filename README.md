@@ -61,6 +61,15 @@
    mamba install numpy pandas scipy matplotlib seaborn plotly jupyter scikit-learn statsmodels openpyxl beautifulsoup4 lxml requests tqdm xgboost lightgbm optuna catboost
    ```
 
+> 📌 **실습 환경 안내**
+> 본 강의는 **Jupyter Notebook** 을 기준으로 진행됩니다.
+> 단, 아래 환경에서도 동일하게 실습할 수 있습니다.
+> | 환경 | 특징 |
+> |---|---|
+> | [Google Colab](https://colab.research.google.com/) | 설치 없이 브라우저에서 바로 실행, GPU 무료 제공 |
+> | [VS Code](https://code.visualstudio.com/) | 가볍고 확장성 높은 범용 에디터 |
+> | [PyCharm](https://www.jetbrains.com/pycharm/) | 강력한 Python 전용 IDE (Community 버전 무료) |
+
 ### 3. Visual Studio Code 설치
 - [VS Code 다운로드 링크](https://code.visualstudio.com/download)
 - 운영체제별 설치 파일을 다운로드한 후, Next와 Yes를 클릭하여 설치를 진행합니다.

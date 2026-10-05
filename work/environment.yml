@@ -1,0 +1,37 @@
+# ML이해/분석활용 [Level.3] 실습 환경
+# 설치: conda env create -f environment.yml
+# 실행: conda activate ml_l3  →  jupyter lab
+name: ml_l3
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      # AutoML (6일차) — 아래 버전들은 PyCaret 3.3.2와 함께 검증한 조합
+      - pycaret==3.3.2
+      - scikit-learn==1.4.2
+      - pandas==2.1.4
+      - numpy==1.26.4
+      - scipy==1.11.4
+      - matplotlib==3.7.5
+      - lightgbm==4.7.0
+      - pmdarima==2.0.4
+      - joblib==1.3.2
+      # 데이터 다루기·시각화 (1일차)
+      - duckdb==1.5.6
+      - pyarrow==25.0.1
+      - seaborn==0.13.2
+      - koreanize-matplotlib==0.1.1
+      - xlrd==2.0.2
+      # 통계·비지도 (2일차)
+      - statsmodels==0.15.0
+      - factor_analyzer==0.5.1
+      - mlxtend==0.23.4
+      # 불균형 (3일차)
+      - imbalanced-learn==0.14.2
+      # 앱 (1·4일차)
+      - streamlit==1.64.0
+      # 노트북
+      - jupyterlab==4.6.4
+      - ipykernel==7.4.0

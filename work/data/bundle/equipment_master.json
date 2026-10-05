@@ -1,0 +1,82 @@
+[
+  {
+    "equip_id": "MC-01",
+    "line": "L1",
+    "spec": {
+      "maker": "A사",
+      "install_year": 2019
+    }
+  },
+  {
+    "equip_id": "MC-02",
+    "line": "L1",
+    "spec": {
+      "maker": "A사",
+      "install_year": 2020
+    }
+  },
+  {
+    "equip_id": "MC-03",
+    "line": "L1",
+    "spec": {
+      "maker": "B사",
+      "install_year": 2012
+    }
+  },
+  {
+    "equip_id": "MC-04",
+    "line": "L1",
+    "spec": {
+      "maker": "A사",
+      "install_year": 2021
+    }
+  },
+  {
+    "equip_id": "MC-05",
+    "line": "L1",
+    "spec": {
+      "maker": "C사",
+      "install_year": 2018
+    }
+  },
+  {
+    "equip_id": "MC-06",
+    "line": "L2",
+    "spec": {
+      "maker": "B사",
+      "install_year": 2019
+    }
+  },
+  {
+    "equip_id": "MC-07",
+    "line": "L2",
+    "spec": {
+      "maker": "C사",
+      "install_year": 2022
+    }
+  },
+  {
+    "equip_id": "MC-08",
+    "line": "L2",
+    "spec": {
+      "maker": "B사",
+      "install_year": 2013
+    }
+  },
+  {
+    "equip_id": "MC-09",
+    "line": "L2",
+    "spec": {
+      "maker": "A사",
+      "install_year": 2020
+    }
+  },
+  {
+    "equip_id": "MC-10",
+    "line": "L2",
+    "spec": {
+      "maker": "C사",
+      "install_year": 2021
+    }
+  }
+]

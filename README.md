@@ -1,78 +1,127 @@
-"# ML01 
+# ML이해/분석활용 [Level.3]
+
+제조 AX를 위한 머신러닝 모델링·분석 과정 (6일, 총 48시간) 실습 저장소입니다.
+
+- 실습 환경: **Miniforge 가상환경 `ml_l3` (Python 3.11, PyCaret 3.3.2)** + Jupyter Notebook
+- 실습 노트북: `work/student/day1 ~ day6/`
+- 과제 안내: `work/assignment/assignment.md` (Word 파일 `assignment.docx`)
+
+---
 
 ## 🛠️ 개발 환경 구성하기
+
+6일 동안 쓰는 환경입니다. **1일차 1교시에 함께 설치**하며, 미리 해 오시면 더 좋습니다.
 
 ### 1. Miniforge 설치 및 설정
 1. **Miniforge 다운로드 및 설치**
    - [Miniforge 다운로드 링크](https://github.com/conda-forge/miniforge/releases/latest)
-   - 운영체제별 설치 파일을 다운로드한 후, Next와 Yes를 클릭하여 설치를 진행합니다.
-2. **Miniforge 프롬프트 실행**
-   - `시작` > `모두` > `Miniforge3` > `Miniforge Prompt`
+   - 운영체제별 설치 파일을 다운로드한 후 설치를 진행합니다.
 
-### 2. 가상환경 생성 및 필요 라이브러리 설치
+   | OS | 방법 |
+   |---|---|
+   | Windows | `Miniforge3-Windows-x86_64.exe` 를 내려받아 Next와 Yes를 눌러 설치 (기본 옵션 그대로) |
+   | Mac | `Miniforge3-MacOSX-arm64.sh`(M1 이후) 또는 `x86_64`(인텔)를 내려받은 뒤 터미널에서 `bash 파일이름.sh` |
+
+2. **Miniforge 프롬프트 실행**
+   - Windows: `시작` > `모두` > `Miniforge3` > `Miniforge Prompt`
+   - Mac: 터미널
+
+### 2. 저장소 내려받기
+이 저장소를 클론하거나, GitHub의 `Code` > `Download ZIP`으로 내려받아 압축을 풉니다.
+
+### 3. 가상환경 생성 및 필요 라이브러리 설치
 
 > 💡 **초보자 추천**: 아래 **방법 1 (yml 파일 사용)** 로 한 번에 설치하세요!
 
-**방법 1. yml 파일로 한 번에 설치 (권장)**
-1. 이 저장소를 클론하거나 아래 내용을 `environment.yml` 파일로 저장합니다.
-   ```yaml
-   name: ds
-   channels:
-     - conda-forge
-   dependencies:
-     - python=3.12
-     - numpy
-     - pandas
-     - scipy
-     - matplotlib
-     - seaborn
-     - plotly
-     - jupyter
-     - scikit-learn
-     - statsmodels
-     - openpyxl
-     - beautifulsoup4
-     - lxml
-     - requests
-     - tqdm
-     - xgboost
-     - lightgbm
-     - optuna
-     - catboost
-   ```
-2. Miniforge Prompt를 열고 `environment.yml` 파일이 있는 폴더로 이동한 후, 아래 명령어 한 줄로 가상환경 생성 및 라이브러리 설치를 완료합니다.
+**방법 1. yml 파일로 한 번에 설치 (권장, 처음 한 번 5~10분)**
+1. Miniforge Prompt에서 `work` 폴더로 이동한 뒤, 아래 명령어 한 줄로 가상환경 생성과 라이브러리 설치를 끝냅니다.
    ```bash
-   mamba env create -f environment.yml
+   cd work
+   conda env create -f environment.yml
    ```
-3. 가상환경을 활성화합니다.
+   Python 3.11과 PyCaret 3.3.2를 포함해 필요한 패키지가 `environment.yml`에 정해진 버전으로 설치됩니다.
+2. 가상환경을 활성화합니다.
    ```bash
-   conda activate ds
+   conda activate ml_l3
    ```
-
 
 **방법 2. 직접 설치**
-1. **가상환경 생성 및 활성화 (Python 3.12)**
+1. 가상환경을 만들고 활성화합니다 (Python 3.11).
    ```bash
-   mamba create -n ds python=3.12 -y
-   conda activate ds
+   conda create -n ml_l3 python=3.11 -y
+   conda activate ml_l3
    ```
-2. **필수 라이브러리 설치**
+2. 필수 라이브러리를 설치합니다. 버전은 PyCaret 3.3.2와 함께 검증한 조합이므로 바꾸지 마세요.
    ```bash
-   mamba install numpy pandas scipy matplotlib seaborn plotly jupyter scikit-learn statsmodels openpyxl beautifulsoup4 lxml requests tqdm xgboost lightgbm optuna catboost
+   pip install pycaret==3.3.2 scikit-learn==1.4.2 pandas==2.1.4 numpy==1.26.4 scipy==1.11.4 matplotlib==3.7.5 lightgbm==4.7.0 pmdarima==2.0.4 joblib==1.3.2 duckdb==1.5.6 pyarrow==25.0.1 seaborn==0.13.2 koreanize-matplotlib==0.1.1 xlrd==2.0.2 statsmodels==0.15.0 factor_analyzer==0.5.1 mlxtend==0.23.4 imbalanced-learn==0.14.2 streamlit==1.64.0 jupyterlab==4.6.4 ipykernel==7.4.0
    ```
+
+> ⚠️ 이전 과정에서 쓰던 `ds`(Python 3.12), `pycaret_env`(Python 3.10) 환경은 **쓰지 않습니다.** 이 과정은 PyCaret까지 포함한 `ml_l3` 환경 하나로 진행합니다.
+
+### 4. 매 수업 시작할 때
+```bash
+conda activate ml_l3
+cd work
+jupyter lab
+```
+브라우저에서 Jupyter가 열리면 `student/day1/D1_01_환경점검.ipynb`부터 엽니다.
 
 > 📌 **실습 환경 안내**
-> 본 강의는 **Jupyter Notebook** 을 기준으로 진행됩니다.
-> 단, 아래 환경에서도 동일하게 실습할 수 있습니다.
+> 본 강의는 **Jupyter Notebook(JupyterLab)** 을 기준으로 진행됩니다.
+> 아래 환경은 `ml_l3` 가상환경을 커널로 선택하면 사용할 수 있지만, 수업은 JupyterLab 기준으로 안내합니다.
 > | 환경 | 특징 |
 > |---|---|
-> | [Google Colab](https://colab.research.google.com/) | 설치 없이 브라우저에서 바로 실행, GPU 무료 제공 |
-> | [VS Code](https://code.visualstudio.com/) | 가볍고 확장성 높은 범용 에디터 |
+> | [VS Code](https://code.visualstudio.com/) | 가볍고 확장성 높은 범용 에디터 (Jupyter 확장 설치 후 커널을 `ml_l3`로 선택) |
 > | [PyCharm](https://www.jetbrains.com/pycharm/) | 강력한 Python 전용 IDE (Community 버전 무료) |
+> | [Google Colab](https://colab.research.google.com/) | 설치 없이 브라우저에서 실행. 다만 이 과정의 패키지 버전(Python 3.11, PyCaret 3.3.2 등)과 달라 일부 노트북이 다르게 동작할 수 있습니다 |
 
-### 3. Visual Studio Code 설치
+### 5. Visual Studio Code 설치 (선택)
 - [VS Code 다운로드 링크](https://code.visualstudio.com/download)
 - 운영체제별 설치 파일을 다운로드한 후, Next와 Yes를 클릭하여 설치를 진행합니다.
+
+### 6. 폴더 구성
+| 폴더 | 내용 |
+|---|---|
+| `work/data/` | 수업 데이터 (`raw/`는 원본, 수정하지 않음) |
+| `work/student/day1 ~ day6/` | 교시별 실습 노트북 (직접 입력 칸이 비어 있음) |
+| `work/assignment/` | 과제 안내 (`assignment.md`, `assignment.docx`) |
+| `work/environment.yml` | 가상환경 설치 파일 |
+
+### 7. 자주 생기는 문제
+| 증상 | 해결 |
+|---|---|
+| `conda`를 찾을 수 없음 | Windows는 일반 명령 프롬프트가 아니라 **Miniforge Prompt**에서 실행 |
+| 노트북에서 `ModuleNotFoundError` | 오른쪽 위 커널이 `ml_l3` 환경인지 확인, 아니면 `conda activate ml_l3` 후 `jupyter lab` 다시 실행 |
+| 그래프 한글이 네모로 깨짐 | 노트북 첫 셀의 `import koreanize_matplotlib` 를 실행했는지 확인 |
+| Streamlit 앱이 데이터를 못 찾음 | 터미널에서 **노트북이 있는 폴더로 이동한 뒤** `streamlit run 앱.py` 실행 |
+
+---
+
+## 🤖 AutoML (PyCaret) 사용법
+
+PyCaret 3.3.2는 `ml_l3` 환경에 이미 들어 있으므로 **별도 가상환경이 필요 없습니다.** (6일차에서 사용)
+
+**참고 소스 (PyCaret 사용 예제)**
+```python
+from pycaret.datasets import get_data
+from pycaret.classification import *
+
+# 1. 데이터 불러오기 (붓꽃 데이터)
+data = get_data('iris')
+
+# 2. PyCaret 환경 초기화
+# html=False 옵션은 특정 환경에서 UI 충돌을 방지합니다. (기본값 True)
+s = setup(data, target='species', session_id=123)
+
+# 3. 모델 성능 비교 (자동 ML 시작)
+best_model = compare_models()
+
+# 4. 결과 출력 확인
+print(best_model)
+```
+
+**PyCaret 공부 사이트**
+* [1위 PyCaret 소개 Low-code 머신러닝의 시작](https://wikidocs.net/306399)
 
 ---
 
@@ -129,53 +178,8 @@
 **2. 캐글에서 번역 기능 사용하기**
 - Kaggle 데이터셋/대회 진입 (예: Competitions > Getting Started > Titanic)
 - `Code` 탭에서 특정 노트북 클릭 (예: "Titanic competition w/ TensorFlow Decision Forests")
-- 좌측 상단의 `[Display iframe]` 버튼 클릭 
+- 좌측 상단의 `[Display iframe]` 버튼 클릭
 - 화면 우클릭 후 `한국어로 번역` 선택
-
----
-
-## 🤖 AutoML (PyCaret) 가상환경 설정 및 사용법
-
-**1. Miniforge Prompt 실행**
-- `시작` > `모두` > `Miniforge3` > `Miniforge Prompt`
-
-**2. 가상환경 생성 및 활성화**
-> 💡 *참고: Python 3.10 버전이 PyCaret과 가장 호환성이 좋습니다.*
-```bash
-# 가상환경 생성
-conda create -n pycaret_env python=3.10 -y
-
-# 가상환경 활성화
-conda activate pycaret_env
-```
-
-**3. 필수 라이브러리 설치**
-> 설치 시 `matplotlib`, `seaborn`, `scikit-learn` 등 주요 데이터 분석 라이브러리가 함께 설치됩니다.
-```bash
-pip install "pycaret[full]" jupyter ipykernel
-```
-
-**4. 참고 소스 (PyCaret 사용 예제)**
-```python
-from pycaret.datasets import get_data
-from pycaret.classification import *
-
-# 1. 데이터 불러오기 (붓꽃 데이터)
-data = get_data('iris')
-
-# 2. PyCaret 환경 초기화
-# html=False 옵션은 특정 환경에서 UI 충돌을 방지합니다. (기본값 True)
-s = setup(data, target='species', session_id=123)
-
-# 3. 모델 성능 비교 (자동 ML 시작)
-best_model = compare_models()
-
-# 4. 결과 출력 확인
-print(best_model)
-```
-
-**5. pycaret 공부 사이트**
-* [1위 PyCaret 소개 Low-code 머신러닝의 시작](https://wikidocs.net/306399)
 
 ---
 

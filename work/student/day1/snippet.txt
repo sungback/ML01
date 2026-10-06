@@ -1,0 +1,12 @@
+sql = """
+SELECT p.*,
+       s.air_temp, s.process_temp, s.rpm, s.torque, s.tool_wear, s.vibration,
+       q.failure, q.twf, q.hdf, q.pwf, q.osf, q.rnf,
+       e.line, e.spec_maker AS maker, e.spec_install_year AS install_year
+FROM prod p
+LEFT JOIN sensor s ON p.equip_id = s.equip_id AND p.timestamp = s.timestamp
+LEFT JOIN quality_result q ON p.product_id = q.product_id
+LEFT JOIN equip e ON p.equip_id = e.equip_id
+"""
+df = con.sql(sql).df()
+

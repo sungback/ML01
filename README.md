@@ -151,6 +151,13 @@ print(best_model)
 * [GitHub 튜토리얼](https://github.com/teddylee777/streamlit-tutorial)
 * [YouTube 영상 추천](https://www.youtube.com/watch?v=F8a-0JFHfOo)
 
+### Streamlit 배포 주소
+| 앱 | 짧은 주소 | 실제 주소 |
+|---|---|---|
+| KOSPI 추세 투자 분석 | https://tinyurl.com/kotuja | https://kdz8ro4tbw2pk2tjsvdgcf.streamlit.app/ |
+| 업비트 코인 분석 | http://tinyurl.com/cointuja | https://paymqcbygcojz4gwfbogbu.streamlit.app/ |
+| 미국 주식 상승 추세 분석 | https://tinyurl.com/mijusik | https://pxquwya8k9bfmyumuj9wcy.streamlit.app/ |
+
 ### 추천 영상 강의
 * **통계 기초**: [딥하지 않은 확률통계 (YouTube)](https://www.youtube.com/watch?v=1rppbn9M35c&list=PL44zjiJMJWSohV9vl-YU35sDS7nNBLbJQ)
 * **AI 마스터하기**: [YouTube 재생목록](https://www.youtube.com/playlist?list=PLVE1cahS5WEShoNLpkRwwsmHcO9xaHorz)

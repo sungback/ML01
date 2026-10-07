@@ -1,0 +1,1776 @@
+# ==================================================
+# KOSPI 추세 투자 분석 - Streamlit
+# ==================================================
+
+import logging
+
+logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
+
+# 이 앱에서 발생한 오류를 기록할 로거
+logger = logging.getLogger(__name__)
+
+import hashlib
+import io
+import json
+import platform
+from datetime import datetime, timedelta
+from pathlib import Path
+from threading import RLock
+
+import FinanceDataReader as fdr
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+from matplotlib.lines import Line2D
+import mplfinance as mpf
+import streamlit as st
+
+
+# ==================================================
+# 1. 화면 설정
+# ==================================================
+
+st.set_page_config(page_title="KOSPI 추세 투자 분석", page_icon="📈", layout="wide")
+
+st.title("KOSPI 추세 투자 분석")
+st.caption("MA20 / MA60 / MA120 / MA200 + 모멘텀 + 매수·매도 계획")
+
+
+# ==================================================
+# 2. 작은 정보 카드 스타일
+# ==================================================
+
+st.markdown(
+    """
+    <style>
+    .info-card {
+        padding: 6px 8px;
+        border: 1px solid #dddddd;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 6px;
+        min-height: 58px;
+    }
+
+    .info-title {
+        font-size: 12px;
+        color: #777777;
+        margin-bottom: 1px;
+    }
+
+    .info-value {
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.25;
+        word-break: keep-all;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ==================================================
+# 3. 기본 설정
+# ==================================================
+
+# 최근 600일 데이터를 사용
+START = (datetime.now() - timedelta(days=600)).strftime("%Y-%m-%d")
+
+# app.py와 같은 위치의 stock_data 폴더를 사용
+BASE_DIR = Path(__file__).resolve().parent
+DATA_FOLDER = BASE_DIR / "stock_data"
+
+# 폴더가 없으면 자동 생성
+DATA_FOLDER.mkdir(parents=True, exist_ok=True)
+
+# 앱이 읽고 쓰는 주가 번들
+# 종목당 CSV 를 따로 두지 않고 한 파일로 모은다.
+BUNDLE_FILE = BASE_DIR / "stock_data.parquet"
+INDEX_FILE = BASE_DIR / "kospi_index.parquet"
+LIST_FILE = BASE_DIR / "kospi_list.parquet"
+
+# 입력한 보유 종목을 저장해 두는 파일
+# 새로고침하거나 앱을 다시 켜도 값이 남는다.
+POSITIONS_FILE = BASE_DIR / "positions.json"
+
+# 번들 컬럼 순서
+BUNDLE_COLUMNS = [
+    "Code",
+    "Date",
+    "Open",
+    "High",
+    "Low",
+    "Close",
+    "Volume",
+    "Change",
+]
+
+# 파일 캐시 확인 주기: 1시간
+DATA_REFRESH_SECONDS = 60 * 60
+
+# 매수가와 손절가는 화면의 '보유 종목 입력' 표에서 직접 입력한다.
+# 입력한 값은 st.session_state["positions"]에 종목코드 기준으로 보관한다.
+
+# 데이터 파일 동시 갱신 충돌 방지
+DATA_LOCK = RLock()
+
+# matplotlib 동시 실행 충돌 방지
+PLOT_LOCK = RLock()
+
+
+# ==================================================
+# 4. 한글 폰트
+# ==================================================
+
+# 저장소에 함께 넣어 둔 나눔고딕을 matplotlib에 등록한다.
+#
+# Streamlit Cloud(리눅스)에는 한글 폰트가 설치되어 있지 않다.
+# 별도 패키지나 apt 설치에 기대면 환경에 따라 실패하므로
+# 폰트 파일을 직접 읽어서 등록한다.
+FONT_FILE = BASE_DIR / "fonts" / "NanumGothic.ttf"
+
+if FONT_FILE.exists():
+    try:
+        fm.fontManager.addfont(str(FONT_FILE))
+
+    except Exception as e:
+        # 폰트 등록에 실패해도 앱은 계속 실행되어야 한다.
+        logger.warning("한글 폰트 등록 실패: %s", e)
+
+else:
+    logger.warning("한글 폰트 파일이 없습니다: %s", FONT_FILE)
+
+# 설치된 폰트 확인
+available_fonts = {f.name for f in fm.fontManager.ttflist}
+
+# 운영체제 기본 한글 폰트를 우선 사용
+font = {"Windows": "Malgun Gothic", "Darwin": "AppleGothic"}.get(
+    platform.system(), "NanumGothic"
+)
+
+# 없으면 위에서 등록한 나눔고딕, 그것도 없으면 기본 폰트
+if font not in available_fonts:
+    font = "NanumGothic" if "NanumGothic" in available_fonts else "DejaVu Sans"
+
+plt.rcParams["font.family"] = font
+plt.rcParams["axes.unicode_minus"] = False
+
+
+# ==================================================
+# 5. 사이드바
+# ==================================================
+
+st.sidebar.header("분석 설정")
+
+# 종목 유형은 항상 고정해서 표시
+TYPE_OPTIONS = ["전체", "균형형", "강한추세", "급등주의", "과열주의", "저과열", "일반"]
+
+opt = st.sidebar.selectbox("종목 유형", TYPE_OPTIONS, index=0)
+
+TOP_N = st.sidebar.slider("추천 종목 수", min_value=5, max_value=50, value=20, step=5)
+
+CHART_N = st.sidebar.slider("차트 개수", min_value=1, max_value=20, value=10)
+
+# 캔들 차트에 표시할 거래일 수
+CHART_DAYS = st.sidebar.selectbox(
+    "차트 기간",
+    [60, 120, 250],
+    index=0,
+    format_func=lambda x: f"{x}일",
+)
+
+min_value_uk = st.sidebar.number_input(
+    "최소 평균 거래대금(억원)", min_value=1.0, max_value=1000.0, value=10.0, step=1.0
+)
+
+# 억원 → 원
+MIN_VALUE = min_value_uk * 100_000_000
+
+stop_rate_pct = st.sidebar.slider("최대 손실률(%)", min_value=3, max_value=20, value=8)
+
+STOP_RATE = stop_rate_pct / 100
+
+
+# 파일 캐시와 Streamlit 분석 캐시를 함께 새로고침
+if st.sidebar.button("주가/분석 데이터 새로고침"):
+    st.cache_data.clear()
+    st.rerun()
+
+st.sidebar.caption("주가 파일은 1시간마다 최신 여부를 자동 확인합니다.")
+
+
+# ==================================================
+# 6. 작은 카드 출력 함수
+# ==================================================
+
+
+def load_positions():
+    """저장해 둔 보유 종목을 읽는다. 없거나 깨졌으면 빈 값."""
+
+    if not POSITIONS_FILE.exists():
+        return {}
+
+    try:
+        saved = json.loads(POSITIONS_FILE.read_text(encoding="utf-8"))
+
+    except Exception as e:
+        logger.warning("보유 종목 파일을 읽지 못했습니다: %s", e)
+        return {}
+
+    if not isinstance(saved, dict):
+        return {}
+
+    # 저장된 값이 숫자인지 확인한다.
+    clean = {}
+
+    for code, item in saved.items():
+        if not isinstance(item, dict):
+            continue
+
+        buy = item.get("매수가")
+
+        if not isinstance(buy, (int, float)) or buy <= 0:
+            continue
+
+        stop = item.get("손절가")
+
+        if not isinstance(stop, (int, float)) or stop <= 0:
+            stop = None
+
+        clean[str(code)] = {"매수가": float(buy), "손절가": stop}
+
+    return clean
+
+
+def save_positions(data):
+    """보유 종목을 파일로 저장한다."""
+
+    try:
+        POSITIONS_FILE.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+    except Exception as e:
+        # 저장에 실패해도 앱은 계속 돌아야 한다.
+        logger.warning("보유 종목을 저장하지 못했습니다: %s", e)
+
+
+def to_price(value):
+    """
+    표에 입력한 값을 가격 숫자로 바꾼다.
+
+    비어 있거나 숫자가 아니거나 0 이하이면 None(미입력)으로 본다.
+    """
+
+    if value is None:
+        return None
+
+    # 표에서 온 값은 글자다. 쉼표나 원 기호가 섞여 있어도 받아 준다.
+    if isinstance(value, str):
+        value = value.replace(",", "").replace("원", "").strip()
+
+        if not value:
+            return None
+
+    elif pd.isna(value):
+        return None
+
+    try:
+        value = float(value)
+
+    except (TypeError, ValueError):
+        return None
+
+    return value if value > 0 else None
+
+
+def won(value):
+    """가격을 원 단위 글자로 바꾼다. 값이 없으면 '-' 로 표시한다."""
+
+    if pd.isna(value):
+        return "-"
+
+    return f"{value:,.0f}원"
+
+
+def show_card(column, title, value):
+    """작은 정보 카드 표시"""
+
+    with column:
+        st.markdown(
+            f"""
+            <div class="info-card">
+                <div class="info-title">{title}</div>
+                <div class="info-value">{value}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# ==================================================
+# 7. 파일 저장 / 데이터 지문
+# ==================================================
+
+
+def save_bundle(df, path):
+    """
+    번들을 파일로 저장한다.
+
+    임시 파일에 먼저 쓰고 마지막에 교체한다.
+    저장 도중 멈춰도 기존 파일이 깨지지 않는다.
+    """
+
+    temp = path.with_name(path.name + ".tmp")
+
+    df.to_parquet(temp, compression="zstd", index=False)
+
+    temp.replace(path)
+
+
+def build_bundle_from_csv():
+    """
+    stock_data 폴더의 CSV 를 모아 번들 형식으로 만든다.
+
+    예전 방식으로 받아 둔 CSV 가 있는 환경에서
+    번들을 처음 만들 때 쓴다.
+
+    KOSPI 지수(KS11)는 OHLC 가 소수점을 가져 dtype 이 다르다.
+    같은 표에 담으면 개별 종목의 int64 가 float64 로 바뀌므로
+    여기서 제외하고 build_index_from_csv 로 따로 만든다.
+
+    CSV 가 하나도 없으면 None 을 돌려준다.
+    """
+
+    frames = []
+
+    for file in sorted(DATA_FOLDER.glob("*.csv")):
+        # 종목 목록과 지수는 개별 종목이 아니므로 제외
+        if file.stem in ("KOSPI_list", "KS11"):
+            continue
+
+        try:
+            df = pd.read_csv(
+                file, index_col="Date", parse_dates=["Date"]
+            ).sort_index()
+
+        except Exception as e:
+            logger.warning("%s 읽기 실패, 건너뜁니다: %s", file.name, e)
+            continue
+
+        if df.empty:
+            continue
+
+        df = df.reset_index()
+
+        # 파일 이름이 곧 종목코드
+        df["Code"] = file.stem
+
+        frames.append(df)
+
+    if not frames:
+        return None
+
+    bundle = pd.concat(frames, ignore_index=True)
+
+    return (
+        bundle[BUNDLE_COLUMNS]
+        .sort_values(["Code", "Date"])
+        .reset_index(drop=True)
+    )
+
+
+def build_index_from_csv():
+    """
+    stock_data/KS11.csv 를 읽어 KOSPI 지수 표로 만든다.
+
+    파일이 없으면 None 을 돌려준다.
+    """
+
+    file = DATA_FOLDER / "KS11.csv"
+
+    if not file.exists():
+        return None
+
+    try:
+        df = pd.read_csv(
+            file, index_col="Date", parse_dates=["Date"]
+        ).sort_index()
+
+    except Exception as e:
+        logger.warning("KS11.csv 읽기 실패: %s", e)
+        return None
+
+    if df.empty:
+        return None
+
+    return df
+
+
+def data_fingerprint():
+    """
+    주가 번들의 상태를 짧은 글자로 요약한다.
+
+    파일이 하나도 바뀌지 않으면 같은 값이 나온다.
+    이 값을 캐시 키로 쓰면 데이터가 그대로일 때 캐시가 유지된다.
+    """
+
+    parts = []
+
+    for file in (BUNDLE_FILE, INDEX_FILE, LIST_FILE):
+        if not file.exists():
+            parts.append(f"{file.name}:없음")
+            continue
+
+        info = file.stat()
+        parts.append(f"{file.name}:{info.st_size}:{info.st_mtime_ns}")
+
+    return hashlib.md5("|".join(parts).encode()).hexdigest()[:12]
+
+
+# ==================================================
+# 8. 주가 파일 캐시 준비
+# ==================================================
+
+
+@st.cache_data(ttl=DATA_REFRESH_SECONDS, show_spinner=False)
+def prepare_stock_data():
+    """
+    주가 번들을 확인하고 필요한 만큼만 갱신한다.
+
+    - 번들이 없으면 예전 CSV 에서 만들거나 새로 내려받는다
+    - KOSPI 지수와 개별 종목이 오래되었으면 부족한 날짜만 갱신
+    - 이미 최신이면 다운로드 생략
+    """
+
+    stats = {
+        "신규 다운로드": 0,
+        "기존 파일 갱신": 0,
+        "이미 최신": 0,
+        "새 데이터 없음": 0,
+        "오류": 0,
+    }
+
+    # 오류가 난 종목코드 예시 (사이드바 표시용)
+    error_codes = []
+
+    with DATA_LOCK:
+        # ----------------------------------------------
+        # ① KOSPI 종목 목록
+        # ----------------------------------------------
+        try:
+            stocks = fdr.StockListing("KOSPI")
+
+        except Exception as e:
+            # 인터넷 오류 시 기존 목록 사용
+            logger.warning(
+                "KOSPI 종목 목록 조회 실패, 저장된 목록을 사용합니다: %s", e
+            )
+
+            if not LIST_FILE.exists():
+                raise RuntimeError(
+                    "KOSPI 종목 목록을 받지 못했고 저장된 목록도 없습니다."
+                )
+
+            stocks = pd.read_parquet(LIST_FILE)
+
+        # 종목코드를 6자리 문자열로 통일
+        stocks["Code"] = (
+            stocks["Code"]
+            .astype(str)
+            .str.replace(".0", "", regex=False)
+            .str.zfill(6)
+        )
+
+        # 일반 종목만 사용
+        stocks = stocks[stocks["Code"].str.endswith("0")].reset_index(drop=True)
+
+        # 목록이 달라졌을 때만 저장한다.
+        # 같은 내용을 다시 쓰면 수정시각이 바뀌어 캐시가 버려진다.
+        list_changed = True
+
+        if LIST_FILE.exists():
+            try:
+                list_changed = not pd.read_parquet(LIST_FILE).equals(stocks)
+
+            except Exception as e:
+                logger.warning("종목 목록 비교 실패, 새로 저장합니다: %s", e)
+
+        if list_changed:
+            save_bundle(stocks, LIST_FILE)
+
+        # ----------------------------------------------
+        # ② 번들 적재
+        # ----------------------------------------------
+        bundle = None
+
+        if BUNDLE_FILE.exists():
+            try:
+                bundle = pd.read_parquet(BUNDLE_FILE)
+
+            except Exception as e:
+                # 번들이 깨졌으면 CSV 에서 복구를 시도한다
+                logger.warning("번들을 읽지 못했습니다, 다시 만듭니다: %s", e)
+
+        if bundle is None:
+            # 예전 방식으로 받아 둔 CSV 가 있으면 거기서 만든다
+            bundle = build_bundle_from_csv()
+
+        if bundle is None:
+            bundle = pd.DataFrame(columns=BUNDLE_COLUMNS)
+
+        # 종목코드별로 나눠 둔다
+        frames = {
+            str(code): part.drop(columns="Code").set_index("Date").sort_index()
+            for code, part in bundle.groupby("Code", observed=True)
+        }
+
+        # 번들을 새로 만들었으면 저장이 필요하다
+        changed = not BUNDLE_FILE.exists()
+
+        # ----------------------------------------------
+        # ③ KOSPI 지수
+        # ----------------------------------------------
+        kospi = None
+        index_existed = INDEX_FILE.exists()
+
+        if index_existed:
+            try:
+                kospi = pd.read_parquet(INDEX_FILE).set_index("Date").sort_index()
+
+            except Exception as e:
+                logger.warning("KOSPI 지수를 읽지 못했습니다: %s", e)
+
+        if kospi is None or kospi.empty:
+            # 예전 CSV 가 있으면 거기서, 없으면 내려받는다
+            kospi = build_index_from_csv()
+
+        if kospi is None or kospi.empty:
+            kospi = fdr.DataReader("KS11", START)
+
+            if kospi.empty:
+                raise RuntimeError("KOSPI 데이터를 가져오지 못했습니다.")
+
+            kospi.index = pd.to_datetime(kospi.index)
+            kospi = kospi.sort_index()
+
+        index_changed = not index_existed
+
+        try:
+            # 마지막 날짜보다 5일 앞부터 다시 받는다.
+            start = (kospi.index[-1] - pd.Timedelta(days=5)).strftime("%Y-%m-%d")
+
+            new = fdr.DataReader("KS11", start)
+
+            if not new.empty:
+                new.index = pd.to_datetime(new.index)
+                new = new.sort_index()
+
+                merged = pd.concat([kospi, new])
+                merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+
+                if not merged.equals(kospi):
+                    kospi = merged
+                    index_changed = True
+
+        except Exception as e:
+            # 갱신 실패 시 기존 데이터를 계속 사용
+            logger.warning("KOSPI 지수 갱신 실패, 기존 데이터를 사용합니다: %s", e)
+
+        # 최근 600일만 유지
+        cutoff = pd.Timestamp.today() - pd.Timedelta(days=600)
+        trimmed = kospi[kospi.index >= cutoff]
+
+        if not trimmed.equals(kospi):
+            index_changed = True
+
+        kospi = trimmed
+
+        if kospi.empty:
+            raise RuntimeError("KOSPI 데이터가 없습니다.")
+
+        if index_changed:
+            save_bundle(kospi.reset_index(), INDEX_FILE)
+
+        # 전체 시장의 최신 거래일
+        market_date = kospi.index[-1].date()
+
+        # ----------------------------------------------
+        # ④ 개별 종목 주가
+        # ----------------------------------------------
+        for code in stocks["Code"]:
+            try:
+                df = frames.get(code)
+
+                # 번들에 없으면 최근 600일 전체 다운로드
+                if df is None or df.empty:
+                    df = fdr.DataReader(code, START)
+
+                    if df.empty:
+                        stats["새 데이터 없음"] += 1
+                        continue
+
+                    df.index = pd.to_datetime(df.index)
+                    frames[code] = df.sort_index()
+
+                    changed = True
+                    stats["신규 다운로드"] += 1
+                    continue
+
+                # 이미 최신 거래일까지 있으면 다운로드 생략
+                if df.index[-1].date() >= market_date:
+                    stats["이미 최신"] += 1
+                    continue
+
+                # 부족한 최근 날짜만 다운로드
+                start = (df.index[-1] - pd.Timedelta(days=5)).strftime("%Y-%m-%d")
+
+                new = fdr.DataReader(code, start)
+
+                if new.empty:
+                    stats["새 데이터 없음"] += 1
+                    continue
+
+                new.index = pd.to_datetime(new.index)
+                new = new.sort_index()
+
+                # 기존 데이터 + 새 데이터
+                merged = pd.concat([df, new])
+                merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+
+                # 최근 600일만 유지
+                merged = merged[merged.index >= cutoff]
+
+                # 내용이 같으면 저장할 이유가 없다
+                if merged.equals(df):
+                    stats["이미 최신"] += 1
+                    continue
+
+                frames[code] = merged
+
+                changed = True
+                stats["기존 파일 갱신"] += 1
+
+            except Exception as e:
+                # 한 종목 오류가 전체 앱 실행을 막지 않도록 한다.
+                logger.warning("%s 주가 갱신 실패: %s", code, e)
+
+                stats["오류"] += 1
+
+                # 사이드바에 보여 줄 예시 종목코드
+                if len(error_codes) < 5:
+                    error_codes.append(code)
+
+                continue
+
+        # ----------------------------------------------
+        # ⑤ 실제로 바뀐 것이 있을 때만 저장
+        # ----------------------------------------------
+        if changed:
+            rebuilt = []
+
+            for code, part in frames.items():
+                piece = part.reset_index()
+                piece["Code"] = code
+                rebuilt.append(piece)
+
+            new_bundle = (
+                pd.concat(rebuilt, ignore_index=True)[BUNDLE_COLUMNS]
+                .sort_values(["Code", "Date"])
+                .reset_index(drop=True)
+            )
+
+            save_bundle(new_bundle, BUNDLE_FILE)
+
+    # 파일이 바뀌지 않으면 이 값도 그대로다.
+    # 그래서 1시간마다 다시 확인해도 계산 결과 캐시는 유지된다.
+    data_version = f"{market_date}-{data_fingerprint()}"
+
+    return {
+        "market_date": str(market_date),
+        "stock_count": len(stocks),
+        "stats": stats,
+        "error_codes": error_codes,
+        "data_version": data_version,
+    }
+
+
+# ==================================================
+# 8. 데이터 읽기 함수
+# ==================================================
+
+
+@st.cache_data(show_spinner=False)
+def load_bundle(data_version):
+    """
+    주가 번들을 읽어 종목코드별 표로 나눠 돌려준다.
+
+    돌려주는 표의 모양은 예전에 종목별 CSV 를 읽었을 때와 같다.
+    Date 를 인덱스로 하고 Open/High/Low/Close/Volume/Change 컬럼을 가진다.
+
+    종목별로 나누면서 Code 컬럼은 버린다.
+    문자열이 중복 저장되지 않고, 소비 함수들이 예전과 같은 표를 받는다.
+    """
+
+    # data_version 은 데이터가 갱신되었을 때 캐시를 무효화하기 위한 값
+    _ = data_version
+
+    bundle = pd.read_parquet(BUNDLE_FILE)
+
+    groups = {}
+
+    for code, part in bundle.groupby("Code", observed=True):
+        groups[str(code)] = (
+            part.drop(columns="Code")
+            .set_index("Date")
+            .sort_index()
+        )
+
+    return groups
+
+
+@st.cache_data(show_spinner=False)
+def load_market(data_version):
+    """KOSPI 지수 읽기"""
+
+    # data_version은 파일이 갱신되었을 때 캐시를 무효화하기 위한 값
+    _ = data_version
+
+    df = pd.read_parquet(INDEX_FILE)
+
+    return df.set_index("Date").sort_index()
+
+
+@st.cache_data(show_spinner=False)
+def load_stocks(data_version):
+    """KOSPI 종목 목록 읽기"""
+
+    _ = data_version
+
+    df = pd.read_parquet(LIST_FILE)
+
+    # 종목코드를 6자리 문자열로 변경
+    # 예: 5930 → 005930
+    df["Code"] = (
+        df["Code"]
+        .astype(str)
+        .str.replace(".0", "", regex=False)
+        .str.zfill(6)
+    )
+
+    return df
+
+
+# ==================================================
+# 9. 전체 종목 분석 함수
+# ==================================================
+
+
+@st.cache_data(show_spinner=False)
+def compute_metrics(data_version):
+    """
+    모든 KOSPI 종목의 투자 지표를 계산한다.
+
+    사이드바 값(거래대금 기준 등)에는 의존하지 않는다.
+    그래서 슬라이더를 움직여도 이 결과는 캐시에서 그대로 재사용되고,
+    835개 CSV를 다시 읽지 않는다.
+
+    (지표표, 오류정보) 를 돌려준다.
+    """
+
+    stocks = load_stocks(data_version)
+    groups = load_bundle(data_version)
+    rows = []
+
+    # 읽거나 계산하지 못한 종목
+    errors = []
+
+    for _, stock in stocks.iterrows():
+        code = stock["Code"]
+        name = stock["Name"]
+
+        # 번들에 없는 종목은 제외
+        df = groups.get(code)
+
+        if df is None:
+            continue
+
+        try:
+            # MA120과 모멘텀 계산에 필요한 데이터
+            if len(df) < 130:
+                continue
+
+            close = df["Close"]
+            now = close.iloc[-1]
+
+            # ------------------------------------------
+            # 이동평균선
+            # ------------------------------------------
+
+            ma20 = close.rolling(20).mean()
+            ma60 = close.rolling(60).mean()
+            ma120 = close.rolling(120).mean()
+
+            # ------------------------------------------
+            # 상승 정배열
+            # 현재가 > MA20 > MA60 > MA120
+            # ------------------------------------------
+
+            trend = now > ma20.iloc[-1] > ma60.iloc[-1] > ma120.iloc[-1]
+
+            # ------------------------------------------
+            # 이동평균선 상승 여부
+            # ------------------------------------------
+
+            rising = (
+                ma20.iloc[-1] > ma20.iloc[-6]
+                and ma60.iloc[-1] > ma60.iloc[-6]
+                and ma120.iloc[-1] > ma120.iloc[-6]
+            )
+
+            if not (trend and rising):
+                continue
+
+            # ------------------------------------------
+            # 투자 지표
+            # ------------------------------------------
+
+            daily_return = close.pct_change()
+
+            # 최근 20일 수익률
+            return20 = now / close.iloc[-21] - 1
+
+            # 6개월 - 최근 1개월 모멘텀
+            momentum = close.iloc[-22] / close.iloc[-126] - 1
+
+            # MA20 이격도
+            distance = now / ma20.iloc[-1] - 1
+
+            # 최근 20일 평균 거래대금
+            value = (close * df["Volume"]).tail(20).mean()
+
+            # 최근 20일 변동성
+            volatility = daily_return.tail(20).std()
+
+            # 최근 5일 최대 하루 상승률
+            max_up = daily_return.tail(5).max()
+
+            # ------------------------------------------
+            # 기본 필터
+            #
+            # 거래대금 기준은 사이드바에서 바뀌는 값이므로
+            # 여기서 거르지 않고 Value 컬럼으로 내보낸다.
+            # ------------------------------------------
+
+            # 모멘텀 음수
+            if momentum <= 0:
+                continue
+
+            # 최근 20일 30% 초과 상승
+            if return20 > 0.30:
+                continue
+
+            # MA20 이격도 15% 초과
+            if distance > 0.15:
+                continue
+
+            # 최근 5일 중 하루 20% 이상 급등
+            if max_up > 0.20:
+                continue
+
+            # ------------------------------------------
+            # 조건 통과 종목 저장
+            # ------------------------------------------
+
+            rows.append(
+                {
+                    "Code": code,
+                    "Name": name,
+                    "Close": now,
+                    "MA20": ma20.iloc[-1],
+                    "MA60": ma60.iloc[-1],
+                    "MA120": ma120.iloc[-1],
+                    "Return20": return20,
+                    "Momentum": momentum,
+                    "Distance": distance,
+                    "Value": value,
+                    "Volatility": volatility,
+                }
+            )
+
+        except Exception as e:
+            # 한 종목에서 오류가 발생해도 계속 진행한다.
+            # 다만 조용히 넘기면 '조건을 만족하는 종목이 없습니다' 와
+            # 구분이 되지 않으므로 반드시 기록해 둔다.
+            logger.warning("%s 분석 실패: %s", code, e)
+
+            errors.append(code)
+
+            continue
+
+    error_info = {
+        "count": len(errors),
+        "codes": errors[:5],
+        "total": len(stocks),
+    }
+
+    return pd.DataFrame(rows), error_info
+
+
+# ==================================================
+# 10. 주가 데이터 자동 확인 / 갱신
+# ==================================================
+
+try:
+    with st.spinner("주가 데이터 확인 중..."):
+        data_info = prepare_stock_data()
+
+except Exception as e:
+    st.error(f"주가 데이터를 준비하지 못했습니다: {e}")
+    st.stop()
+
+
+data_version = data_info["data_version"]
+
+# 캐시 처리 결과를 사이드바에 간단히 표시
+data_status = st.sidebar.expander("주가 데이터 상태")
+
+with data_status:
+    st.write("기준일 :", data_info["market_date"])
+    st.write("분석 종목 :", data_info["stock_count"])
+
+    for label, value in data_info["stats"].items():
+        st.write(f"{label} : {value}")
+
+    if data_info["error_codes"]:
+        st.write("갱신 오류 예시 :", ", ".join(data_info["error_codes"]))
+
+
+# ==================================================
+# 11. KOSPI 시장 상태
+# ==================================================
+
+try:
+    kospi = load_market(data_version)
+
+except Exception as e:
+    st.error(f"KOSPI 데이터를 읽지 못했습니다: {e}")
+    st.stop()
+
+
+# MA200 계산에는 최소 200일 필요
+if len(kospi) < 200:
+    st.error("KOSPI 데이터가 200일보다 적습니다.")
+    st.stop()
+
+
+kospi_close = kospi["Close"]
+
+# 현재 KOSPI
+kospi_now = kospi_close.iloc[-1]
+
+# KOSPI MA200
+kospi_ma200 = kospi_close.rolling(200).mean().iloc[-1]
+
+# 상승장 여부
+market_up = kospi_now > kospi_ma200
+
+# 데이터 기준일
+market_date = kospi.index[-1].date()
+
+
+# 시장 상태
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("데이터 기준일", str(market_date))
+
+col2.metric("KOSPI", f"{kospi_now:,.2f}")
+
+col3.metric("KOSPI MA200", f"{kospi_ma200:,.2f}")
+
+col4.metric("시장 상태", "상승장" if market_up else "하락장")
+
+
+# ==================================================
+# 12. 전체 종목 분석
+# ==================================================
+
+with st.spinner("KOSPI 종목 분석 중..."):
+    metrics, analyze_errors = compute_metrics(data_version)
+
+
+# 분석 단계에서 읽지 못한 종목을 사이드바 패널에 덧붙인다.
+# 조용히 넘기면 아래 '조건을 만족하는 종목이 없습니다' 와 구분되지 않는다.
+with data_status:
+    st.write(
+        "분석 오류 :",
+        f"{analyze_errors['count']} / {analyze_errors['total']}",
+    )
+
+    if analyze_errors["codes"]:
+        st.write("분석 오류 예시 :", ", ".join(analyze_errors["codes"]))
+
+
+# 거래대금 필터는 파일을 다시 읽지 않고 계산 결과에만 적용한다.
+result = metrics[metrics["Value"] >= MIN_VALUE].reset_index(drop=True).copy()
+
+
+if result.empty:
+    st.warning("조건을 만족하는 종목이 없습니다.")
+    st.stop()
+
+
+# ==================================================
+# 13. 매수 점수
+# ==================================================
+
+# 모멘텀 : 40점
+result["모멘텀점수"] = result["Momentum"].rank(pct=True) * 40
+
+# MA20 이격도 : 30점
+# +5% 부근을 가장 좋게 평가
+result["이격점수"] = (30 * (1 - abs(result["Distance"] - 0.05) / 0.10)).clip(0, 30)
+
+# 거래대금 : 15점
+result["유동성점수"] = result["Value"].rank(pct=True) * 15
+
+# 안정성 : 15점
+# 변동성이 낮을수록 높은 점수
+result["안정성점수"] = (1 - result["Volatility"].rank(pct=True)) * 15
+
+# 총점
+result["BuyScore"] = (
+    result["모멘텀점수"]
+    + result["이격점수"]
+    + result["유동성점수"]
+    + result["안정성점수"]
+)
+
+# 점수가 높은 순으로 정렬
+result = result.sort_values("BuyScore", ascending=False).reset_index(drop=True)
+
+
+# ==================================================
+# 14. 종목 유형 분류
+# ==================================================
+
+# % 단위로 변환
+momentum_pct = result["Momentum"] * 100
+return20_pct = result["Return20"] * 100
+distance_pct = result["Distance"] * 100
+
+
+# 위에서부터 순서대로 검사
+conditions = [
+    # 모멘텀이 매우 강함
+    momentum_pct >= 80,
+    # 최근 급등
+    return20_pct >= 20,
+    # MA20에서 많이 떨어져 있음
+    distance_pct >= 10,
+    # 추세와 과열 정도가 균형적
+    (
+        (momentum_pct >= 15)
+        & (momentum_pct <= 50)
+        & (return20_pct <= 5)
+        & (distance_pct <= 6)
+    ),
+    # MA20 근처
+    distance_pct <= 3,
+]
+
+
+types = ["강한추세", "급등주의", "과열주의", "균형형", "저과열"]
+
+
+result["유형"] = np.select(conditions, types, default="일반")
+
+
+# ==================================================
+# 15. 위험도 / 해석
+# ==================================================
+
+risk_map = {
+    "강한추세": "높음",
+    "급등주의": "높음",
+    "과열주의": "높음",
+    "균형형": "낮음",
+    "저과열": "낮음",
+    "일반": "보통",
+}
+
+
+explain_map = {
+    "강한추세": "추세는 매우 강하지만 이미 많이 오른 종목",
+    "급등주의": "최근 급등하여 추격매수 주의",
+    "과열주의": "상승 추세지만 MA20에서 다소 멀어진 상태",
+    "균형형": "추세와 과열 정도의 균형이 좋은 종목",
+    "저과열": "과열은 적지만 상승 힘을 더 확인할 종목",
+    "일반": "무난한 상승 추세 종목",
+}
+
+
+result["위험도"] = result["유형"].map(risk_map)
+result["해석"] = result["유형"].map(explain_map)
+
+
+# ==================================================
+# 16. 화면 표시용 단위
+# ==================================================
+
+result["20일(%)"] = result["Return20"] * 100
+result["6-1M(%)"] = result["Momentum"] * 100
+result["MA20이격(%)"] = result["Distance"] * 100
+
+# 원 → 억원
+result["거래대금(억)"] = result["Value"] / 100_000_000
+
+
+# ==================================================
+# 17. 전체 추천 종목
+# ==================================================
+
+st.divider()
+
+
+if market_up:
+    st.subheader(f"매수 후보 TOP {TOP_N}")
+
+else:
+    st.subheader(f"관심 종목 TOP {TOP_N}")
+
+    st.warning("KOSPI가 MA200 아래에 있습니다. 신규 매수는 보수적으로 판단합니다.")
+
+
+show_cols = [
+    "Code",
+    "Name",
+    "Close",
+    "BuyScore",
+    "20일(%)",
+    "6-1M(%)",
+    "MA20이격(%)",
+    "거래대금(억)",
+    "유형",
+    "위험도",
+    "해석",
+]
+
+
+st.dataframe(result[show_cols].head(TOP_N).round(2), width="stretch", hide_index=True)
+
+
+# ==================================================
+# 18. 원하는 유형 선택
+# ==================================================
+
+if opt == "전체":
+    # 모든 유형에서 BuyScore 상위 종목
+    selected = result.head(CHART_N).copy()
+
+else:
+    # 선택한 유형에서 BuyScore 상위 종목
+    selected = result[result["유형"] == opt].head(CHART_N).copy()
+
+
+st.subheader(f"{opt} - TOP {CHART_N}")
+
+
+if selected.empty:
+    st.info(f"현재 조건을 만족하는 '{opt}' 종목이 없습니다.")
+
+    st.stop()
+
+
+# ==================================================
+# 19. 보유 종목 입력 (매수가 / 손절가)
+# ==================================================
+
+# 입력한 값은 종목코드를 기준으로 보관한다.
+# 종목 유형이나 차트 개수를 바꿔 목록이 달라져도 값이 그대로 유지된다.
+#
+# 처음 열 때는 저장해 둔 파일에서 읽어 온다.
+# 그래야 새로고침하거나 앱을 다시 켜도 입력한 값이 남는다.
+if "positions" not in st.session_state:
+    st.session_state["positions"] = load_positions()
+
+positions = st.session_state["positions"]
+
+
+st.markdown("#### 보유 종목 입력")
+
+st.caption(
+    "매수가 칸을 두 번 눌러 실제로 매수한 가격을 입력하고 Enter 를 누르세요. "
+    "지울 때도 칸을 두 번 눌러 내용을 비우고 Enter 를 누릅니다. "
+    "입력한 종목만 아래에서 실제 매도 단계를 계산합니다. "
+    "손절가를 비워 두면 MA60과 최대 손실률 중 적절한 값을 자동으로 사용합니다. "
+    "입력한 값은 파일에 저장되어 새로고침해도 남습니다."
+)
+
+
+def build_editor_df():
+    """세션에 저장된 보유 정보로 표 데이터를 만든다."""
+
+    df = selected[["Code", "Name", "Close"]].copy()
+
+    # 숫자 칸으로 만들면 값이 없을 때 Streamlit 이 "None" 이라는 글자를 그린다.
+    # 값처럼 보여서 입력하는 칸이라는 것을 알기 어렵다.
+    # 그래서 글자 칸으로 두고 빈 값은 빈 칸으로 보이게 한다.
+    for column in ("매수가", "손절가"):
+        df[column] = [
+            "" if positions.get(c, {}).get(column) is None
+            else f"{positions[c][column]:,.0f}"
+            for c in df["Code"]
+        ]
+
+    return df
+
+
+# --------------------------------------------------
+# 표 데이터는 세션에 보관하고 매번 다시 만들지 않는다.
+#
+# 매 실행마다 새로 만들면 값을 하나 입력한 순간 표의 내용이 바뀐다.
+# 그러면 Streamlit 이 표를 다른 위젯으로 보고 다시 그리는데,
+# 그 사이에 입력하던 내용이 사라진다.
+# 입력하고 Enter 를 눌러도 반영되지 않던 원인이다.
+#
+# 종목 구성이 실제로 달라졌을 때만 표를 새로 만든다.
+# --------------------------------------------------
+
+current_rows = tuple(selected["Code"])
+
+if st.session_state.get("editor_rows") != current_rows:
+    st.session_state["editor_rows"] = current_rows
+    st.session_state["editor_data"] = build_editor_df()
+
+# 표를 새로 그려야 할 때 올리는 번호
+editor_seq = st.session_state.setdefault("editor_seq", 0)
+
+
+edited = st.data_editor(
+    st.session_state["editor_data"],
+    # 이름을 고정해 두면 표의 내용이 바뀌어도 같은 위젯으로 유지된다.
+    key=f"positions_editor_{editor_seq}",
+    hide_index=True,
+    width="stretch",
+    # 종목 정보는 수정할 수 없다.
+    disabled=["Code", "Name", "Close"],
+    column_config={
+        "Close": st.column_config.NumberColumn("현재가", format="%.0f"),
+        "매수가": st.column_config.TextColumn(
+            "매수가 ✏️",
+            help="실제로 매수한 가격을 숫자로 입력하세요. 비워 두면 미보유로 봅니다.",
+        ),
+        "손절가": st.column_config.TextColumn(
+            "손절가 ✏️",
+            help="비워 두면 MA60과 최대 손실률 중 적절한 값으로 자동 계산합니다.",
+        ),
+    },
+)
+
+
+# 편집한 내용을 다음 실행에서도 그대로 쓰도록 보관한다.
+#
+# 칸을 지우면 그리드가 빈 글자가 아니라 빈 값을 넣는다.
+# 그대로 두면 다음 화면에 "None" 이라는 글자가 보이므로 빈 글자로 바꾼다.
+kept = edited.copy()
+
+cleared = False
+
+for column in ("매수가", "손절가"):
+    values = []
+
+    for value in kept[column]:
+        if value is None or pd.isna(value):
+            cleared = True
+            values.append("")
+
+        else:
+            values.append(str(value))
+
+    kept[column] = values
+
+st.session_state["editor_data"] = kept
+
+
+# 편집한 내용을 세션에 다시 저장한다.
+for code, buy, stop in zip(edited["Code"], edited["매수가"], edited["손절가"]):
+    buy = to_price(buy)
+    stop = to_price(stop)
+
+    if buy is None and stop is None:
+        # 둘 다 지웠으면 보유 목록에서 제거
+        positions.pop(code, None)
+
+    else:
+        positions[code] = {"매수가": buy, "손절가": stop}
+
+
+# 바뀐 내용이 있으면 파일에 저장한다.
+if positions != load_positions():
+    save_positions(positions)
+
+
+# 칸을 지웠으면 표를 새 번호로 다시 그린다.
+#
+# 같은 이름을 계속 쓰면 '지웠다' 는 편집 내용이 표에 계속 덧씌워져
+# 빈 칸에 "None" 이라는 글자가 남는다.
+if cleared:
+    st.session_state["editor_seq"] = editor_seq + 1
+    st.rerun()
+
+
+# ==================================================
+# 20. 매수가 / 손절가
+# ==================================================
+
+selected["매수가"] = pd.to_numeric(
+    pd.Series(
+        [positions.get(c, {}).get("매수가") for c in selected["Code"]],
+        index=selected.index,
+        dtype="object",
+    ),
+    errors="coerce",
+)
+
+
+# 매수가를 입력한 종목만 보유 종목으로 본다.
+held = selected["매수가"].notna()
+
+
+# 직접 입력한 손절가
+manual_stop = pd.to_numeric(
+    pd.Series(
+        [positions.get(c, {}).get("손절가") for c in selected["Code"]],
+        index=selected.index,
+        dtype="object",
+    ),
+    errors="coerce",
+)
+
+
+# 자동 손절가
+# MA60과 매수가 - 최대손실률 중 더 높은 가격을 사용
+auto_stop = pd.concat(
+    [selected["MA60"], selected["매수가"] * (1 - STOP_RATE)], axis=1
+).max(axis=1)
+
+
+# 직접 입력한 손절가가 있으면 우선 사용
+# 매수가가 없는 종목은 손절가도 계산하지 않는다.
+stop_price = manual_stop.fillna(auto_stop)
+
+
+# 손절가는 반드시 매수가보다 낮아야 한다.
+#
+# 매수가보다 MA60 이 높은 경우(싸게 산 종목)에는 위 식이
+# 매수가보다 높은 손절가를 만든다. 그러면 R 이 음수가 되어
+# 1R / 2R 목표가가 매수가 아래로 내려가 뜻이 뒤집힌다.
+# 그런 경우에는 최대 손실률로 계산한 값을 쓴다.
+too_high = stop_price >= selected["매수가"]
+
+stop_price = stop_price.where(
+    ~too_high, selected["매수가"] * (1 - STOP_RATE)
+)
+
+selected["손절가"] = stop_price.where(held)
+
+
+# ==================================================
+# 21. R / 분할 매도
+# ==================================================
+
+# R = 매수가 - 손절가
+selected["R"] = selected["매수가"] - selected["손절가"]
+
+
+# 1R 도달 시 30% 매도
+selected["1R(30%매도)"] = selected["매수가"] + selected["R"]
+
+
+# 2R 도달 시 추가 30% 매도
+selected["2R(30%매도)"] = selected["매수가"] + selected["R"] * 2
+
+
+# ==================================================
+# 22. 현재 매도 단계
+# ==================================================
+
+price = selected["Close"]
+
+
+sell_conditions = [
+    # 매수가를 입력하지 않음
+    ~held,
+    # 손절가 이하
+    price <= selected["손절가"],
+    # MA60 아래
+    price < selected["MA60"],
+    # MA20 아래
+    price < selected["MA20"],
+    # 2R 이상
+    price >= selected["2R(30%매도)"],
+    # 1R 이상
+    price >= selected["1R(30%매도)"],
+]
+
+
+selected["현재단계"] = np.select(
+    sell_conditions,
+    ["미보유", "손절 구간", "추세 이탈", "MA20 이탈", "2R 이상", "1R 이상"],
+    default="1R 전",
+)
+
+
+selected["매도신호"] = np.select(
+    sell_conditions,
+    ["-", "전량 손절", "매도", "주의", "30% 매도 → 남은 40% MA20 추적", "30% 매도"],
+    default="보유",
+)
+
+
+# ==================================================
+# 23. 매수 / 매도 계획 표
+# ==================================================
+
+plan_cols = [
+    "Code",
+    "Name",
+    "Close",
+    "MA20",
+    "MA60",
+    "매수가",
+    "손절가",
+    "1R(30%매도)",
+    "2R(30%매도)",
+    "현재단계",
+    "매도신호",
+]
+
+
+# 값이 없는 칸은 "None" 대신 "-" 로 보여 준다.
+# 미보유 종목의 손절가나 1R 자리가 값처럼 읽히지 않게 한다.
+plan_table = selected[plan_cols].copy()
+
+for column in ("Close", "MA20", "MA60", "매수가", "손절가",
+               "1R(30%매도)", "2R(30%매도)"):
+    plan_table[column] = plan_table[column].map(
+        lambda v: "-" if pd.isna(v) else f"{v:,.0f}"
+    )
+
+st.dataframe(plan_table, width="stretch", hide_index=True)
+
+
+# ==================================================
+# 24. 캔들 차트 스타일
+# ==================================================
+
+st.divider()
+
+st.subheader(f"{opt} 종목 차트")
+
+
+# 상승 = 빨강
+# 하락 = 파랑
+market_colors = mpf.make_marketcolors(up="red", down="#4A90E2", inherit=True)
+
+
+# 이동평균선 색상
+#
+# MA20  = 주황
+# MA60  = 초록
+# MA120 = 보라
+# MA200 = 검정
+style = mpf.make_mpf_style(
+    base_mpf_style="yahoo",
+    marketcolors=market_colors,
+    mavcolors=["orange", "green", "purple", "black"],
+    rc={"font.family": font},
+)
+
+
+# 이동평균선 범례
+ma_legend = [
+    Line2D([0], [0], color="orange", lw=2, label="MA20"),
+    Line2D([0], [0], color="green", lw=2, label="MA60"),
+    Line2D([0], [0], color="purple", lw=2, label="MA120"),
+    Line2D([0], [0], color="black", lw=2, label="MA200"),
+]
+
+
+# ==================================================
+# 25. 차트 그리기 (결과를 캐시)
+# ==================================================
+
+
+@st.cache_data(show_spinner=False, max_entries=120)
+def render_chart(code, chart_days, title, buy, stop, r1, r2, data_version):
+    """
+    종목 차트를 그려 PNG 바이트로 돌려준다.
+
+    같은 입력이면 다시 그리지 않는다.
+    차트 그리기는 화면 표시 비용의 대부분을 차지하므로,
+    유형이나 추천 종목 수만 바꿨을 때 같은 차트를 다시 그리지 않게 한다.
+
+    (PNG 바이트, 데이터 행 수) 를 돌려준다.
+    """
+
+    groups = load_bundle(data_version)
+
+    chart_df = groups.get(code)
+
+    if chart_df is None:
+        raise KeyError(f"번들에 {code} 주가가 없습니다.")
+
+    # 이동평균선은 전체 데이터로 먼저 계산한 뒤
+    # 사용자가 선택한 기간만 화면에 표시한다.
+    # 이렇게 해야 60일 차트에서도 MA120 / MA200을 표시할 수 있다.
+    plot_df = chart_df.copy()
+    for period in (20, 60, 120, 200):
+        plot_df[f"MA{period}"] = plot_df["Close"].rolling(period).mean()
+
+    plot_df = plot_df.tail(chart_days)
+
+    ma_colors = {20: "orange", 60: "green", 120: "purple", 200: "black"}
+    ma_addplots = [
+        mpf.make_addplot(plot_df[f"MA{period}"], color=ma_colors[period], width=1.2)
+        for period in (20, 60, 120, 200)
+        if plot_df[f"MA{period}"].notna().any()
+    ]
+
+    with PLOT_LOCK:
+        fig, axes = mpf.plot(
+            # 사이드바에서 선택한 최근 거래일
+            plot_df,
+            type="candle",
+            # 이동평균선
+            addplot=ma_addplots,
+            # 거래량
+            volume=True,
+            # 가격 영역을 조금 더 넓게, 거래량 영역은 조금 낮게 표시
+            panel_ratios=(4, 1),
+            style=style,
+            figsize=(13, 7),
+            returnfig=True,
+        )
+
+        # 가격 차트
+        ax = axes[0]
+
+        # --------------------------------------------------
+        # 제목
+        # --------------------------------------------------
+
+        ax.set_title(title, fontsize=11, pad=8)
+
+        # --------------------------------------------------
+        # 오른쪽 가격 표시 공간
+        # --------------------------------------------------
+
+        fig.subplots_adjust(right=0.78)
+
+        # 가격 차트와 거래량 차트 사이의 기본 간격은 그대로 유지한다.
+        # 대신 거래량 막대 폭만 아주 조금 줄여 좌우에 여유를 준다.
+        if len(axes) >= 3:
+            volume_ax = axes[2]
+            for bar in volume_ax.patches:
+                old_width = bar.get_width()
+                new_width = old_width * 0.88
+                bar.set_x(bar.get_x() + (old_width - new_width) / 2)
+                bar.set_width(new_width)
+
+        # ==================================================
+        # 26. 매수가 / 손절가 / 1R / 2R 선
+        # ==================================================
+
+        price_lines = [
+            # 매수가
+            ("매수가", buy, "#1565C0", "-"),
+            # 손절가
+            ("손절가", stop, "#D32F2F", "--"),
+            # 1R
+            ("1R(30%매도)", r1, "#00838F", "-."),
+            # 2R
+            ("2R(30%매도)", r2, "#C2185B", ":"),
+        ]
+
+        # 매수가를 입력하지 않은 종목은 그릴 가격선이 없다.
+        price_lines = [item for item in price_lines if item[1] is not None]
+
+        # 가격선 범례
+        price_legend = []
+
+        for label, value, color, line_style in price_lines:
+            # ------------------------------------------
+            # 가격 수평선
+            # ------------------------------------------
+
+            ax.axhline(y=value, color=color, linestyle=line_style, linewidth=1.5)
+
+            # ------------------------------------------
+            # 차트 오른쪽 끝에 가격 표시
+            # ------------------------------------------
+
+            ax.text(
+                1.01,
+                value,
+                f"{label} {value:,.0f}원",
+                # x는 차트 비율
+                # y는 실제 가격
+                transform=ax.get_yaxis_transform(),
+                fontsize=9,
+                color=color,
+                va="center",
+                ha="left",
+                # 차트 밖에도 표시
+                clip_on=False,
+                bbox={
+                    "facecolor": "white",
+                    "edgecolor": color,
+                    "alpha": 0.85,
+                    "pad": 2,
+                },
+            )
+
+            # ------------------------------------------
+            # 범례
+            # ------------------------------------------
+
+            price_legend.append(
+                Line2D(
+                    [0],
+                    [0],
+                    color=color,
+                    linestyle=line_style,
+                    lw=1.5,
+                    label=(f"{label} {value:,.0f}원"),
+                )
+            )
+
+        # ==================================================
+        # 27. 전체 범례
+        # ==================================================
+
+        ax.legend(
+            handles=(ma_legend + price_legend),
+            loc="upper left",
+            frameon=True,
+            fontsize=8,
+        )
+
+        # ==================================================
+        # 28. 그림을 PNG 로 저장
+        # ==================================================
+
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png")
+
+        # 다음 그래프를 위해 닫기
+        plt.close(fig)
+
+    return buffer.getvalue(), len(chart_df)
+
+
+# ==================================================
+# 29. 선택된 모든 종목 차트
+# ==================================================
+
+# CHART_N = 10이면 최대 10개의 차트 출력
+# CHART_N = 10이면 최대 10개의 차트 출력
+for i, (_, row) in enumerate(selected.iterrows(), start=1):
+    code = row["Code"]
+    name = row["Name"]
+
+    # ==================================================
+    # 30. 종목 이름
+    # ==================================================
+
+    st.markdown(f"### {i}. {name} ({code})")
+
+    # ==================================================
+    # 31. 매매 정보 카드
+    # ==================================================
+
+    # --------------------------------------------------
+    # 첫 번째 줄
+    # 현재가 / 매수가 / 손절가 / 1R
+    # --------------------------------------------------
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    show_card(c1, "현재가", won(row["Close"]))
+
+    show_card(c2, "매수가", won(row["매수가"]))
+
+    show_card(c3, "손절가", won(row["손절가"]))
+
+    show_card(c4, "1R(30%매도)", won(row["1R(30%매도)"]))
+
+    # --------------------------------------------------
+    # 두 번째 줄
+    # 2R / 매수점수 / 현재단계 / 매도신호
+    # --------------------------------------------------
+
+    c5, c6, c7, c8 = st.columns(4)
+
+    show_card(c5, "2R(30%매도)", won(row["2R(30%매도)"]))
+
+    show_card(c6, "매수 점수", f"{row['BuyScore']:.1f}점")
+
+    show_card(c7, "현재 단계", row["현재단계"])
+
+    show_card(c8, "매도 신호", row["매도신호"])
+
+    # ==================================================
+    # 32. 차트 제목
+    # ==================================================
+
+    title = f"{name} | {row['유형']} | 위험도 {row['위험도']}\n{row['해석']}"
+
+    # ==================================================
+    # 33. 캔들 차트
+    # ==================================================
+
+    # 값이 없는 가격선은 None 으로 넘긴다.
+    # NaN 은 서로 같지 않아 캐시 키로 쓰기에 알맞지 않다.
+    prices = [
+        None if pd.isna(row[key]) else float(row[key])
+        for key in ("매수가", "손절가", "1R(30%매도)", "2R(30%매도)")
+    ]
+
+    try:
+        chart_png, row_count = render_chart(
+            code, CHART_DAYS, title, *prices, data_version
+        )
+
+    except Exception as e:
+        logger.warning("%s 차트 생성 실패: %s", code, e)
+
+        st.warning(f"{name} 차트를 그리지 못했습니다: {e}")
+
+        st.divider()
+
+        continue
+
+    # MA200 계산에 필요한 데이터 확인
+    # (캐시된 차트에서도 안내가 사라지지 않도록 함수 밖에서 처리한다.)
+    if row_count < 200:
+        st.warning(f"{name} : MA200을 표시하기에 데이터가 부족합니다.")
+
+    st.image(chart_png, width="stretch")
+
+    # 종목 사이 구분선
+    st.divider()
+
+
+# ==================================================
+# 33. 안내
+# ==================================================
+
+st.caption(
+    "※ 기술적 지표를 이용한 분석 예제입니다. "
+    "실제 투자 판단은 사용자가 직접 해야 합니다."
+)

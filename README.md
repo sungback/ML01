@@ -94,6 +94,7 @@ jupyter lab
 | 노트북에서 `ModuleNotFoundError` | 오른쪽 위 커널이 `ml_l3` 환경인지 확인, 아니면 `conda activate ml_l3` 후 `jupyter lab` 다시 실행 |
 | 그래프 한글이 네모로 깨짐 | 노트북 첫 셀의 `import koreanize_matplotlib` 를 실행했는지 확인 |
 | Streamlit 앱이 데이터를 못 찾음 | 터미널에서 **노트북이 있는 폴더로 이동한 뒤** `streamlit run 앱.py` 실행 |
+| `jupyter lab` 실행 때마다 "Build 하시겠습니까?" 창이 뜸 | JupyterLab을 종료한 뒤, `ml_l3` 환경에서 `jupyter labextension uninstall @plotly/dash-jupyterlab` 를 실행하고 `jupyter lab`을 다시 실행 |
 
 ---
 
